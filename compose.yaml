@@ -1,0 +1,17 @@
+version: "3"
+services:
+  coordinator:
+    image: sgranda/pshcontroller:coordinator-latest
+    build: ./coordinator
+
+  gate-controller:
+    image: sgranda/pshcontroller:gate-controller-latest
+    build: ./gate-controller
+
+  pump-controller:
+    image: sgranda/pshcontroller:pump-controller-latest
+    build: ./pump-controller
+
+  level-sensor:
+    image: sgranda/pshcontroller:level-sensor-latest
+    build: ./level-sensor
