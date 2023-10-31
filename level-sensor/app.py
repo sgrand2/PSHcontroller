@@ -3,19 +3,14 @@ modbus server designed to provide a readout for a water level sensor in a
 discrete input cell
 """
 
+import click
 import RPi.GPIO as gpio
-from pymodbus.server import StartAsyncTcpServer
+from pymodbus.server import StartTcpServer
 from pymodbus.datastore import (
     ModbusSequentialDataBlock,
     ModbusServerContext,
     ModbusSlaveContext,
 )
-
-
-def read_water_level_sensor(gpio_pin):
-    if gpio.input(gpio_pin) == gpio.HIGH:
-        return 1
-    return 0
 
 
 class CallbackDataBlock(ModbusSequentialDataBlock):
@@ -26,22 +21,14 @@ class CallbackDataBlock(ModbusSequentialDataBlock):
     def getValues(self, address, count=1):
         """Return the requested values from the datastore."""
         if address == 0x00:
-            return read_water_level_sensor(self.sensor_gpio)
+            if gpio.input(gpio_pin) == gpio.HIGH:
+                return 1
+            return 0
         else:
             return 0
 
 
-def get_args():
-    # TODO could pull these values from command-line arguments instead
-    return {
-        "host": "0.0.0.0",
-        "port": 502,
-        "sensor_read_gpio": 11,
-        "sensor_pwr_gpio": 17
-    }
-
-
-def setup_gpio(sensor_read_gpio=11, sensor_pwr_gpio=17, **args):
+def setup_gpio(sensor_read_gpio, sensor_pwr_gpio, **args):
     # use BCM mode (as opposed to BOARD mode)
     gpio.setmode(gpio.BCM)
 
@@ -52,7 +39,7 @@ def setup_gpio(sensor_read_gpio=11, sensor_pwr_gpio=17, **args):
     gpio.setup(sensor_pwr_gpio, gpio.OUT, initial=gpio.HIGH)
 
 
-def run_server(sensor_read_gpio=11, host=None, port=502, **args):
+def run_server(sensor_read_gpio, host, port, **args):
     # initialize data block with exactly 1 coil, value 0, at address 0x00
     block = CallbackDataBlock(sensor_read_gpio, 0x00, [0] * 1)
 
@@ -71,15 +58,23 @@ def run_server(sensor_read_gpio=11, host=None, port=502, **args):
     )
 
 
-def cleanup(sensor_read_gpio=11, sensor_pwr_gpio=17, **args):
+def cleanup(sensor_read_gpio, sensor_pwr_gpio, **args):
     gpio.output(sensor_pwr_gpio, gpio.LOW)
     gpio.cleanup()
 
 
-if __name__ == "__main__":
-    args = get_args()
+@click.command()
+@click.option("--sensor-read-gpio", "-rg", default=11, help="The GPIO to use for reading water level sensor signal (default: 11)")
+@click.option("--sensor-power-gpio", "-pg", default=17, help="The GPIO to use for powering the water level sensor signal (default: 17)")
+@click.option("--host", "-h", default="0.0.0.0", help="The address to use when creating a socket for the Modbus server (default: 0.0.0.0)")
+@click.option("--port", "-p", default=502, help="The address to use when creating a socket for the Modbus server (default: 502)")
+def main(**args):
     try:
         setup_gpio(**args)
         run_server(**args)
     finally:
         cleanup(**args)
+
+
+if __name__ == "__main__":
+    main()

@@ -2,8 +2,9 @@
 modbus server designed to provide a read-write interface for a water pump
 """
 
+import click
 import RPi.GPIO as gpio
-from pymodbus.server import StartAsyncTcpServer
+from pymodbus.server import StartTcpServer
 from pymodbus.datastore import (
     ModbusSequentialDataBlock,
     ModbusServerContext,
@@ -26,16 +27,7 @@ class CallbackDataBlock(ModbusSequentialDataBlock):
                 super().setValues(0x00, [1])
 
 
-def get_args():
-    # TODO could pull these values from command-line arguments instead
-    return {
-        "host": "0.0.0.0",
-        "port": 502,
-        "pump_gpio": 16
-    }
-
-
-def setup_gpio(pump_gpio=16, **args):
+def setup_gpio(pump_gpio, **args):
     # use BCM mode (as opposed to BOARD mode)
     gpio.setmode(gpio.BCM)
 
@@ -43,7 +35,7 @@ def setup_gpio(pump_gpio=16, **args):
     gpio.setup(pump_gpio, gpio.OUT, initial=gpio.LOW)
 
 
-def run_server(pump_gpio=16, host=None, port=502, **args):
+def run_server(pump_gpio, host, port, **args):
     # initialize data block with exactly 1 coil, value 0, at address 0x00
     block = CallbackDataBlock(pump_gpio, 0x00, [0] * 1)
 
@@ -62,15 +54,22 @@ def run_server(pump_gpio=16, host=None, port=502, **args):
     )
 
 
-def cleanup(pump_gpio=16, **args):
+def cleanup(pump_gpio, **args):
     gpio.output(pump_gpio, gpio.LOW)
     gpio.cleanup()
 
 
-if __name__ == "__main__":
-    args = get_args()
+@click.command()
+@click.option("--pump-gpio", "-pg", default=16, help="The GPIO to use for controlling the pump (default: 16)")
+@click.option("--host", "-h", default="0.0.0.0", help="The address to use when creating a socket for the Modbus server (default: 0.0.0.0)")
+@click.option("--port", "-p", default=502, help="The address to use when creating a socket for the Modbus server (default: 502)")
+def main(**args):
     try:
         setup_gpio(**args)
         run_server(**args)
     finally:
         cleanup(**args)
+
+
+if __name__ == "__main__":
+    main()

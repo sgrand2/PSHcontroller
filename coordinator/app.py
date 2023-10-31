@@ -1,14 +1,15 @@
 import datetime as dt
 
+import click
 from pymodbus.client import ModbusTcpClient
 from pymodbus.exceptions import ModbusException
 from pymodbus.pdu import ExceptionResponse
 
 
-def setup():
-    sensor_client = ModbusTcpClient("192.168.0.3", port=502)
-    gate_client = ModbusTcpClient("192.168.0.4", port=502)
-    pump_client = ModbusTcpClient("192.168.0.5", port=502)
+def setup(sensor_server, sensor_server_port, gate_server, gate_server_port, pump_server, pump_server_port, **args):
+    sensor_client = ModbusTcpClient(sensor_server, port=sensor_server_port)
+    gate_client = ModbusTcpClient(gate_server, port=gate_server_port)
+    pump_client = ModbusTcpClient(pump_server, port=pump_server_port)
 
     sensor_client.connect()
     gate_client.connect()
@@ -24,8 +25,17 @@ def teardown(clients):
         c.close()
 
 
-def main():
-    clients = setup()
+@click.command()
+@click.option("--sensor-server", "-ss", default="192.168.0.3", help="The address of the Modbus/TCP server to query for water level sensor state (default: 192.168.0.3)")
+@click.option("--sensor-server-port", "-sp", default=502, help="The port to direct Modbus traffic to for the water level sensor server (default: 502)")
+@click.option("--gate-server", "-gs", default="192.168.0.4", help="The address of the Modbus/TCP server to manipulate the water gate state (default: 192.168.0.4)")
+@click.option("--gate-server-port", "-gp", default=502, help="The port to direct Modbus traffic to for the water level sensor server (default: 502)")
+@click.option("--pump-server", "-ps", default="192.168.0.5", help="The address of the Modbus/TCP server to manipulate the water pump state (default: 192.168.0.5)")
+@click.option("--pump-server-port", "-pp", default=502, help="The port to direct Modbus traffic to for the water level sensor server (default: 502)")
+@click.option("--hmi-host", "-ha", default="0.0.0.0", help="The address to use when creating a socket for the HMI (default: 0.0.0.0)")
+@click.option("--hmi-port", "-hp", default=80, help="The port to use when creating a socket for the HMI (default: 80)")
+def main(**args):
+    clients = setup(**args)
 
     try:
 
@@ -70,3 +80,7 @@ def main():
 
     finally:
         teardown(clients)
+
+
+if __name__ == "__main__":
+    main()
