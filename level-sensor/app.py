@@ -35,9 +35,6 @@ def setup_gpio(sensor_read_gpio, sensor_pwr_gpio, **args):
     # set up read pin as input signal
     gpio.setup(sensor_read_gpio, gpio.IN)
 
-    # send power signal through selected power pin
-    gpio.setup(sensor_pwr_gpio, gpio.OUT, initial=gpio.HIGH)
-
 
 def run_server(sensor_read_gpio, host, port, **args):
     # initialize data block with exactly 1 coil, value 0, at address 0x00
@@ -59,13 +56,11 @@ def run_server(sensor_read_gpio, host, port, **args):
 
 
 def cleanup(sensor_read_gpio, sensor_pwr_gpio, **args):
-    gpio.output(sensor_pwr_gpio, gpio.LOW)
     gpio.cleanup()
 
 
 @click.command()
 @click.option("--sensor-read-gpio", "-rg", default=11, help="The GPIO to use for reading water level sensor signal (default: 11)")
-@click.option("--sensor-power-gpio", "-pg", default=17, help="The GPIO to use for powering the water level sensor signal (default: 17)")
 @click.option("--host", "-h", default="0.0.0.0", help="The address to use when creating a socket for the Modbus server (default: 0.0.0.0)")
 @click.option("--port", "-p", default=502, help="The address to use when creating a socket for the Modbus server (default: 502)")
 def main(**args):
