@@ -5,4 +5,7 @@ RUN pip install pymodbus rpi.gpio click
 
 EXPOSE 502
 
-CMD python app.py
+WORKDIR /opt/csci498
+COPY app.py /opt/csci498/app.py
+
+CMD python /opt/csci498/app.py

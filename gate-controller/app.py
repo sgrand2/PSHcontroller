@@ -48,7 +48,7 @@ def run_server(gate_gpio, host, port, **args):
     context = ModbusServerContext(slaves=store, single=True)
 
     # start the modbus/TCP server with the provided information from cmdline
-    return await StartTcpServer(
+    return StartTcpServer(
         context=context,
         address=(host, port),
     )

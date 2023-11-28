@@ -3,15 +3,38 @@ services:
   coordinator:
     image: sgranda/pshcontroller:coordinator-latest
     build: ./coordinator
+    networks:
+      modbus:
+        ipv4_address: 192.168.0.2
 
   gate-controller:
     image: sgranda/pshcontroller:gate-controller-latest
     build: ./gate-controller
+    privileged: true
+    networks:
+      modbus:
+        ipv4_address: 192.168.0.4
 
   pump-controller:
     image: sgranda/pshcontroller:pump-controller-latest
     build: ./pump-controller
+    privileged: true
+    networks:
+      modbus:
+        ipv4_address: 192.168.0.5
 
   level-sensor:
     image: sgranda/pshcontroller:level-sensor-latest
     build: ./level-sensor
+    privileged: true
+    networks:
+      modbus:
+        ipv4_address: 192.168.0.3
+
+networks:
+  modbus:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 192.168.0.0/24
+          gateway: 192.168.0.1

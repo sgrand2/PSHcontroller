@@ -28,7 +28,7 @@ class CallbackDataBlock(ModbusSequentialDataBlock):
             return 0
 
 
-def setup_gpio(sensor_read_gpio, sensor_pwr_gpio, **args):
+def setup_gpio(sensor_read_gpio, **args):
     # use BCM mode (as opposed to BOARD mode)
     gpio.setmode(gpio.BCM)
 
@@ -49,13 +49,13 @@ def run_server(sensor_read_gpio, host, port, **args):
     context = ModbusServerContext(slaves=store, single=True)
 
     # start the modbus/TCP server with the provided information from cmdline
-    return await StartTcpServer(
+    return StartTcpServer(
         context=context,
         address=(host, port),
     )
 
 
-def cleanup(sensor_read_gpio, sensor_pwr_gpio, **args):
+def cleanup(sensor_read_gpio, **args):
     gpio.cleanup()
 
 
