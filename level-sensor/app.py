@@ -24,7 +24,7 @@ class CallbackDataBlock(ModbusSequentialDataBlock):
         logging.debug(f"read request received for address {address}, count {count}")
         if self._sensor_gpio is not None:
             import RPi.GPIO as gpio
-            if address == 0x00:
+            if address == 0x01:
                 if gpio.input(gpio_pin) == gpio.HIGH:
                     logging.info("read level sensor state as HIGH in response to request")
                     return 1
@@ -49,8 +49,8 @@ def setup_gpio(sensor_gpio, **args):
 def run_server(sensor_gpio, host, port, **args):
     logging.debug("setting up Modbus/TCP server")
 
-    # initialize data block with exactly 1 coil, value 0, at address 0x00
-    block = CallbackDataBlock(sensor_gpio, 0x00, [0] * 1)
+    # initialize data block with exactly 1 coil, value 0, at address 0x01
+    block = CallbackDataBlock(sensor_gpio, 0x01, [0] * 1)
 
     # pass the data block in as a discrete input initializer (read-only 1-bit
     # cells); ignore coils, holding registers, and input registers

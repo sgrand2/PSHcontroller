@@ -22,16 +22,16 @@ class CallbackDataBlock(ModbusSequentialDataBlock):
         logging.debug(f"write request received for address {address}, values {values}")
         if self._gate_gpio is not None:
             import RPi.GPIO as gpio
-            if address == 0x00:
+            if address == 0x01:
                 import RPi.GPIO as gpio
                 if values == [0]:
                     logging.info("toggling gate CLOSED in response to request")
                     gpio.output(self._gate_gpio, gpio.LOW)
-                    super().setValues(0x00, [0])
+                    super().setValues(0x01, [0])
                 elif values == [1]:
                     logging.info("toggling gate OPEN in response to request")
                     gpio.output(self._gate_gpio, gpio.HIGH)
-                    super().setValues(0x00, [1])
+                    super().setValues(0x01, [1])
 
 
 def setup_gpio(gate_gpio, **args):
@@ -48,8 +48,8 @@ def setup_gpio(gate_gpio, **args):
 def run_server(gate_gpio, host, port, **args):
     logging.debug("setting up Modbus/TCP server")
 
-    # initialize data block with exactly 1 coil, value 0, at address 0x00
-    block = CallbackDataBlock(gate_gpio, 0x00, [0] * 1)
+    # initialize data block with exactly 1 coil, value 0, at address 0x01
+    block = CallbackDataBlock(gate_gpio, 0x01, [0] * 1)
 
     # pass the data block in as a coil initializer (read-write 1-bit cells);
     # ignore discrete inputs, holding registers, and input registers

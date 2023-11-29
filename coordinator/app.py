@@ -50,7 +50,9 @@ def main(**args):
 
         # poll in loop and set values in loop (mindful of day.night cycles; this is PSH after all)
         while True:
-        
+            import time
+            time.sleep(1)
+
             # for now make every even minute represent daytime and every odd minute represent nighttime
             is_day = dt.datetime.now().minute % 2 == 0
 
@@ -75,20 +77,20 @@ def main(**args):
             if is_day:
                 # open gate, stop pump
                 logging.info("(DAY, ___) --> opening gate, stopping pump")
-                gate_client.write_coil(0x00, 1)
-                pump_client.write_coil(0x00, 0)
+                clients[1].write_coil(0x00, 1)
+                clients[2].write_coil(0x00, 0)
 
             elif not is_day and not water_level_high:
                 # close gate, run pump
                 logging.info("(NIGHT, LOW) --> closing gate, starting pump")
-                gate_client.write_coil(0x00, 0)
-                pump_client.write_coil(0x00, 1)
+                clients[1].write_coil(0x00, 0)
+                clients[2].write_coil(0x00, 1)
 
             else: #(not day and water level is high)
                 # close gate, stop pump
                 logging.info("(NIGHT, HIGH) --> closing gate, stopping pump")
-                gate_client.write_coil(0x00, 0)
-                pump_client.write_coil(0x00, 0)
+                clients[1].write_coil(0x00, 0)
+                clients[2].write_coil(0x00, 0)
 
     finally:
         teardown(clients)
