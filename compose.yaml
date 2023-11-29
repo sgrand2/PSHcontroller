@@ -6,11 +6,20 @@ services:
     networks:
       modbus:
         ipv4_address: 192.168.0.2
+    depends_on:
+      gate-controller:
+        condition: service_healthy
+      pump-controller:
+        condition: service_healthy
+      level-sensor:
+        condition: service_healthy
 
   gate-controller:
     image: sgranda/pshcontroller:gate-controller-latest
     build: ./gate-controller
     privileged: true
+    healthcheck:
+      test: ["CMD-SHELL", " netstat -an | grep -q 502"]
     networks:
       modbus:
         ipv4_address: 192.168.0.4
@@ -19,6 +28,8 @@ services:
     image: sgranda/pshcontroller:pump-controller-latest
     build: ./pump-controller
     privileged: true
+    healthcheck:
+      test: ["CMD-SHELL", " netstat -an | grep -q 502"]
     networks:
       modbus:
         ipv4_address: 192.168.0.5
@@ -27,6 +38,8 @@ services:
     image: sgranda/pshcontroller:level-sensor-latest
     build: ./level-sensor
     privileged: true
+    healthcheck:
+      test: ["CMD-SHELL", " netstat -an | grep -q 502"]
     networks:
       modbus:
         ipv4_address: 192.168.0.3
