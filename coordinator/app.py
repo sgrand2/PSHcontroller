@@ -1,3 +1,4 @@
+import logging
 import datetime as dt
 
 import click
@@ -7,6 +8,7 @@ from pymodbus.pdu import ExceptionResponse
 
 
 def setup(sensor_server, sensor_server_port, gate_server, gate_server_port, pump_server, pump_server_port, **args):
+    logging.debug("setting up modbus relay server clients")
     sensor_client = ModbusTcpClient(sensor_server, port=sensor_server_port)
     gate_client = ModbusTcpClient(gate_server, port=gate_server_port)
     pump_client = ModbusTcpClient(pump_server, port=pump_server_port)
@@ -19,6 +21,7 @@ def setup(sensor_server, sensor_server_port, gate_server, gate_server_port, pump
 
 
 def teardown(clients):
+    logging.debug("cleaning up modbus relay server clients")
     clients[1].write_coil(0x00, 0)
     clients[2].write_coil(0x00, 0)
     for c in clients:
@@ -26,6 +29,7 @@ def teardown(clients):
 
 
 @click.command()
+@click.option("--log", "-l", default="info", help="The log level to use when sending logs to stdout (default: INFO; options: DEBUG, INFO, WARNING, ERROR, CRITICAL)")
 @click.option("--sensor-server", "-ss", default="192.168.0.3", help="The address of the Modbus/TCP server to query for water level sensor state (default: 192.168.0.3)")
 @click.option("--sensor-server-port", "-sp", default=502, help="The port to direct Modbus traffic to for the water level sensor server (default: 502)")
 @click.option("--gate-server", "-gs", default="192.168.0.4", help="The address of the Modbus/TCP server to manipulate the water gate state (default: 192.168.0.4)")
@@ -35,6 +39,11 @@ def teardown(clients):
 @click.option("--hmi-host", "-ha", default="0.0.0.0", help="The address to use when creating a socket for the HMI (default: 0.0.0.0)")
 @click.option("--hmi-port", "-hp", default=80, help="The port to use when creating a socket for the HMI (default: 80)")
 def main(**args):
+    # set up logging
+    log_level = getattr(logging, args['log'].upper())
+    logging.basicConfig(level=log_level)
+    logging.info(f"logging level set to {args['log'].upper()}")
+
     clients = setup(**args)
 
     try:
@@ -48,33 +57,36 @@ def main(**args):
             try:
                 sr = clients[0].read_discrete_inputs(0x00)
             except ModbusException as e:
-                print(f"ERROR: {e}")
+                logging.critical(f"{e}")
                 teardown(clients)
                 exit(1)
 
             if sr.isError():
-                print(f"ERROR: modbus library error: {sr}")
+                logging.critical(f"modbus library error: {sr}")
                 teardown(clients)
                 exit(1)
 
             if isinstance(sr, ExceptionResponse):
-                print(f"ERROR: modbus error response: {sr}")
+                logging.critical(f"modbus error response: {sr}")
                 teardown(clients)
                 exit(1)
 
             water_level_high = sr.bits[0] == 1
             if is_day:
                 # open gate, stop pump
+                logging.info("(DAY, ___) --> opening gate, stopping pump")
                 gate_client.write_coil(0x00, 1)
                 pump_client.write_coil(0x00, 0)
 
             elif not is_day and not water_level_high:
                 # close gate, run pump
+                logging.info("(NIGHT, LOW) --> closing gate, starting pump")
                 gate_client.write_coil(0x00, 0)
                 pump_client.write_coil(0x00, 1)
 
             else: #(not day and water level is high)
                 # close gate, stop pump
+                logging.info("(NIGHT, HIGH) --> closing gate, stopping pump")
                 gate_client.write_coil(0x00, 0)
                 pump_client.write_coil(0x00, 0)
 
