@@ -13,27 +13,43 @@ from pymodbus.datastore import (
     ModbusSlaveContext,
 )
 
-
 class CallbackDataBlock(ModbusSequentialDataBlock):
     def __init__(self, sensor_gpio, address, values):
         super().__init__(address, values)
         self._sensor_gpio = sensor_gpio
 
+    def _included_in_range(addr, rng, target_addr):
+        if addr + rng > target_addr:
+            return target_addr - addr
+        return None
+
+    def _read_sensor_gpio(self):
+        import RPi.GPIO as gpio
+        if address == 0x01:
+            if gpio.input(self._sensor_gpio) == gpio.HIGH:
+                logging.info("read level sensor state as HIGH in response to request")
+                return 1
+            logging.info("read level sensor state as LOW in response to request")
+        return 0
+
+    def _fake_sensor_gpio(self):
+        import random
+        if random.randint(0, 100) < 50:
+            return 0
+        return 1
+
     def getValues(self, address, count=1):
         """Return the requested values from the datastore."""
         logging.debug(f"read request received for address {address}, count {count}")
-        if self._sensor_gpio is not None:
-            import RPi.GPIO as gpio
-            if address == 0x01:
-                if gpio.input(gpio_pin) == gpio.HIGH:
-                    logging.info("read level sensor state as HIGH in response to request")
-                    return 1
-                logging.info("read level sensor state as LOW in response to request")
-                return 0
+        idx = CallbackDataBlock._included_in_range(address, count, 0x01)
+        if idx is not None:
+            results = [0] * count
+            if self._sensor_gpio is not None:
+                results[idx] = self._read_sensor_gpio()
             else:
-                return 0
-        return [42] * count
-
+                results[idx] = self._fake_sensor_gpio()
+            return results
+        return [self._fake_sensor_gpio()] * count
 
 def setup_gpio(sensor_gpio, **args):
     logging.debug("setting up GPIO")

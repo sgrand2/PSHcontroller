@@ -8,4 +8,4 @@ EXPOSE 502
 WORKDIR /opt/csci498
 COPY app.py /opt/csci498/app.py
 
-CMD python /opt/csci498/app.py
+CMD python /opt/csci498/app.py run

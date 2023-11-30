@@ -45,6 +45,7 @@ def main(**args):
     logging.info(f"logging level set to {args['log'].upper()}")
 
     clients = setup(**args)
+    previous_action = 0
 
     try:
 
@@ -76,21 +77,33 @@ def main(**args):
             water_level_high = sr.bits[0] == 1
             if is_day:
                 # open gate, stop pump
-                logging.info("(DAY, ___) --> opening gate, stopping pump")
+                if previous_action == 1:
+                    logging.debug("(DAY, ___) --> opening gate, stopping pump")
+                else:
+                    logging.info("(DAY, ___) --> opening gate, stopping pump")
                 clients[1].write_coil(0x00, 1)
                 clients[2].write_coil(0x00, 0)
+                previous_action = 1
 
             elif not is_day and not water_level_high:
                 # close gate, run pump
-                logging.info("(NIGHT, LOW) --> closing gate, starting pump")
+                if previous_action == 2:
+                    logging.debug("(NIGHT, LOW) --> closing gate, starting pump")
+                else:
+                    logging.info("(NIGHT, LOW) --> closing gate, starting pump")
                 clients[1].write_coil(0x00, 0)
                 clients[2].write_coil(0x00, 1)
+                previous_action = 2
 
             else: #(not day and water level is high)
                 # close gate, stop pump
-                logging.info("(NIGHT, HIGH) --> closing gate, stopping pump")
+                if previous_action == 3:
+                    logging.debug("(NIGHT, HIGH) --> closing gate, stopping pump")
+                else:
+                    logging.info("(NIGHT, HIGH) --> closing gate, stopping pump")
                 clients[1].write_coil(0x00, 0)
                 clients[2].write_coil(0x00, 0)
+                previous_action = 3
 
     finally:
         teardown(clients)

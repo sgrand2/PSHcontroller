@@ -18,20 +18,23 @@ class CallbackDataBlock(ModbusSequentialDataBlock):
         super().__init__(address, values)
         self._gate_gpio = gate_gpio
 
+    def _included_in_range(addr, rng, target_addr):
+        if addr + rng > target_addr:
+            return target_addr - addr
+        return None
+
     def setValues(self, address, values):
         logging.debug(f"write request received for address {address}, values {values}")
-        if self._gate_gpio is not None:
-            import RPi.GPIO as gpio
-            if address == 0x01:
-                import RPi.GPIO as gpio
-                if values == [0]:
-                    logging.info("toggling gate CLOSED in response to request")
-                    gpio.output(self._gate_gpio, gpio.LOW)
-                    super().setValues(0x01, [0])
-                elif values == [1]:
-                    logging.info("toggling gate OPEN in response to request")
-                    gpio.output(self._gate_gpio, gpio.HIGH)
-                    super().setValues(0x01, [1])
+        idx = CallbackDataBlock._included_in_range(address, len(values), 0x01)
+        if idx is not None and self._gate_gpio is not None:
+            target_value = values[idx]
+            if target_value is True:
+                logging.info("toggling gate OPEN in response to request")
+                gpio.output(self._gate_gpio, gpio.HIGH)
+            else:
+                logging.info("toggling gate CLOSED in response to request")
+                gpio.output(self._gate_gpio, gpio.LOW)
+        super().setValues(address, values)
 
 
 def setup_gpio(gate_gpio, **args):
