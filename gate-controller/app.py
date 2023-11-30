@@ -27,6 +27,7 @@ class CallbackDataBlock(ModbusSequentialDataBlock):
         logging.debug(f"write request received for address {address}, values {values}")
         idx = CallbackDataBlock._included_in_range(address, len(values), 0x01)
         if idx is not None and self._gate_gpio is not None:
+            import RPi.GPIO as gpio
             target_value = values[idx]
             if target_value is True:
                 logging.info("toggling gate OPEN in response to request")
