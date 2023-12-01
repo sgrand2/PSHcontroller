@@ -4,7 +4,7 @@ import datetime as dt
 from pathlib import Path
 
 import click
-from flask import Flask, send_from_directory
+from flask import Flask, send_from_directory, request
 from pymodbus.client import ModbusTcpClient
 from pymodbus.exceptions import ModbusException
 from pymodbus.pdu import ExceptionResponse
@@ -15,6 +15,7 @@ HMI_ROOT = '/opt/csci498/hmi'
 
 
 # thread-safe variables for state sharing
+manualControlEvent = threading.Event()
 isDayEvent = threading.Event()
 waterLevelHighEvent = threading.Event()
 gateOpenEvent = threading.Event()
@@ -23,6 +24,12 @@ pumpOnEvent = threading.Event()
 
 @app.route("/update")
 def flask_update():
+    # get management style
+    if manualControlEvent.is_set():
+        manualControl = 1
+    else:
+        manualControl = 0
+
     # get time of day
     if isDayEvent.is_set():
         timeOfDay = 1
@@ -48,11 +55,24 @@ def flask_update():
         pumpOn = 0
 
     return {
+        "manualControl": manualControl,
         "timeOfDay": timeOfDay,
         "waterLevelHigh": waterLevelHigh,
         "gateOpen": gateOpen,
         "pumpOn": pumpOn
     }
+
+
+@app.route("/manual", methods=['POST'])
+def flask_manual():
+    new_value = request.args.get('s')
+    if new_value == '1':
+        logging.warning("changing to manual control mode")
+        manualControlEvent.set()
+    else:
+        logging.info("changing to automatic control mode")
+        manualControlEvent.clear()
+    return ('', 204)
 
 
 @app.route("/")
@@ -90,6 +110,59 @@ def teardown(clients):
     clients[2].write_coil(0x00, 0)
     for c in clients:
         c.close()
+
+
+def automatic_control_logic(is_day, water_level_high, previous_action, clients):
+    if is_day:
+        # open gate, stop pump
+        if previous_action == 1:
+            logging.debug("(DAY, ___) --> opening gate, stopping pump")
+        else:
+            logging.info("(DAY, ___) --> opening gate, stopping pump")
+
+        # manipulate relays
+        clients[1].write_coil(0x00, 1)
+        clients[2].write_coil(0x00, 0)
+
+        # manipulate thread events (2/2 variant 0)
+        gateOpenEvent.set()
+        pumpOnEvent.clear()
+
+        return 1
+
+    elif not is_day and not water_level_high:
+        # close gate, run pump
+        if previous_action == 2:
+            logging.debug("(NIGHT, LOW) --> closing gate, starting pump")
+        else:
+            logging.info("(NIGHT, LOW) --> closing gate, starting pump")
+
+        # manipulate relays
+        clients[1].write_coil(0x00, 0)
+        clients[2].write_coil(0x00, 1)
+
+        # manipulate thread events (2/2 variant 1)
+        gateOpenEvent.clear()
+        pumpOnEvent.set()
+
+        return 2
+
+    else: #(not day and water level is high)
+        # close gate, stop pump
+        if previous_action == 3:
+            logging.debug("(NIGHT, HIGH) --> closing gate, stopping pump")
+        else:
+            logging.info("(NIGHT, HIGH) --> closing gate, stopping pump")
+
+        # manipulate relays
+        clients[1].write_coil(0x00, 0)
+        clients[2].write_coil(0x00, 0)
+
+        # manipulate thread events (2/2 variant 2)
+        gateOpenEvent.clear()
+        pumpOnEvent.clear()
+
+        return 3
 
 
 def run_control_loop(sensor_server, sensor_server_port, gate_server, gate_server_port, pump_server, pump_server_port):
@@ -136,57 +209,11 @@ def run_control_loop(sensor_server, sensor_server_port, gate_server, gate_server
             else:
                 isDayEvent.clear()
 
-            # perform control logic
-            if is_day:
-                # open gate, stop pump
-                if previous_action == 1:
-                    logging.debug("(DAY, ___) --> opening gate, stopping pump")
-                else:
-                    logging.info("(DAY, ___) --> opening gate, stopping pump")
-
-                # manipulate relays
-                clients[1].write_coil(0x00, 1)
-                clients[2].write_coil(0x00, 0)
-
-                # manipulate thread events (2/2 variant 0)
-                gateOpenEvent.set()
-                pumpOnEvent.clear()
-
-                previous_action = 1
-
-            elif not is_day and not water_level_high:
-                # close gate, run pump
-                if previous_action == 2:
-                    logging.debug("(NIGHT, LOW) --> closing gate, starting pump")
-                else:
-                    logging.info("(NIGHT, LOW) --> closing gate, starting pump")
-
-                # manipulate relays
-                clients[1].write_coil(0x00, 0)
-                clients[2].write_coil(0x00, 1)
-
-                # manipulate thread events (2/2 variant 1)
-                gateOpenEvent.clear()
-                pumpOnEvent.set()
-
-                previous_action = 2
-
-            else: #(not day and water level is high)
-                # close gate, stop pump
-                if previous_action == 3:
-                    logging.debug("(NIGHT, HIGH) --> closing gate, stopping pump")
-                else:
-                    logging.info("(NIGHT, HIGH) --> closing gate, stopping pump")
-
-                # manipulate relays
-                clients[1].write_coil(0x00, 0)
-                clients[2].write_coil(0x00, 0)
-
-                # manipulate thread events (2/2 variant 2)
-                gateOpenEvent.clear()
-                pumpOnEvent.clear()
-
-                previous_action = 3
+            # flip between manual and automatic control
+            if manualControlEvent.is_set():
+                previous_action = None
+            else:
+                previous_action = automatic_control_logic(is_day, water_level_high, previous_action, clients)
 
     finally:
         teardown(clients)

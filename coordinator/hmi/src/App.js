@@ -4,19 +4,21 @@ import WaterTank from "./components/WaterTank";
 import VerticalPipe from "./components/VerticalPipe";
 import Readout from "./components/Readout";
 
-function gateToggleCallback(newValue, setState) {
-  console.log("setting gate open to: " + newValue);
+function toggleCallback(newValue, setState) {
   setState(newValue ? 1 : 0);
 }
 
-function pumpToggleCallback(newValue, setState) {
-  console.log("setting pump running to: " + newValue);
-  setState(newValue ? 1 : 0);
+function setManualControlRequest(value) {
+  fetch(`/manual?s=${value ? 1 : 0}`, {
+    method: 'POST'
+  })
+    .then((response) => {})
 }
 
 function App() {
-  const secondsBetweenUpdate = 5;
+  const secondsBetweenUpdate = 1;
 
+  const [manualControl, setManualControl] = useState(0);
   const [timeOfDay, setTimeOfDay] = useState(0);
   const [waterLevelHigh, setWaterLevelHigh] = useState(0);
   const [gateOpen, setGateOpen] = useState(0);
@@ -30,6 +32,7 @@ function App() {
         .then((json) => {
           console.log("updating data with vvv");
           console.log(json);
+          setManualControl(json.manualControl);
           setTimeOfDay(json.timeOfDay);
           setWaterLevelHigh(json.waterLevelHigh);
           setGateOpen(json.gateOpen);
@@ -38,11 +41,13 @@ function App() {
 
       // for testing:
       //const updateData = {
+      //  manualControl: 0,
       //  timeOfDay: 0,
       //  waterLevelHigh: 0,
       //  gateOpen: 0,
       //  pumpOn: 0
       //}
+      //setManualControl(updateData.manualControl);
       //setTimeOfDay(updateData.timeOfDay);
       //setWaterLevelHigh(updateData.waterLevelHigh);
       //setGateOpen(updateData.gateOpen);
@@ -66,10 +71,11 @@ function App() {
       <VerticalPipe pos={[400, 225]} lifting={pumpOn !== 0}/>
       <WaterTank pos={[500, 100]} />
 
+      <Readout pos={[100, 50]} name="CONTROL STYLE" value={manualControl} onLabel="MANUAL" offLabel="AUTO" onColor="red" offColor="green" withToggle toggleCallback={(v) => {setManualControlRequest(v); toggleCallback(v, setManualControl)}}/>
       <Readout pos={[100, 400]} name="TIME OF DAY" value={timeOfDay} onLabel="DAY" offLabel="NIGHT" onColor="white" offColor="gray" />
       <Readout pos={[200, 400]} name="WATER LEVEL" value={waterLevelHigh} onLabel="HIGH" offLabel="LOW" onColor="red" offColor="green" />
-      <Readout pos={[300, 400]} name="GATE" value={gateOpen} onLabel="OPEN" offLabel="CLOSED" onColor="green" offColor="red" withToggle toggleCallback={(v) => {gateToggleCallback(v, setGateOpen)}}/>
-      <Readout pos={[400, 400]} name="PUMP" value={pumpOn} onLabel="ON" offLabel="OFF" onColor="green" offColor="red" withToggle toggleCallback={(v) => {pumpToggleCallback(v, setPumpOn)}}/>
+      <Readout pos={[300, 400]} name="GATE" value={gateOpen} onLabel="OPEN" offLabel="CLOSED" onColor="green" offColor="red" withToggle={manualControl} toggleCallback={(v) => {toggleCallback(v, setGateOpen)}}/>
+      <Readout pos={[400, 400]} name="PUMP" value={pumpOn} onLabel="ON" offLabel="OFF" onColor="green" offColor="red" withToggle={manualControl} toggleCallback={(v) => {toggleCallback(v, setPumpOn)}}/>
     </div>
   );
 }
