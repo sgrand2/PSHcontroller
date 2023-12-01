@@ -14,22 +14,38 @@ app = Flask("coordinator")
 HMI_ROOT = '/opt/csci498/hmi'
 
 
+# thread-safe variables for state sharing
+isDayEvent = threading.Event()
+waterLevelHighEvent = threading.Event()
+gateOpenEvent = threading.Event()
+pumpOnEvent = threading.Event()
+
+
 @app.route("/update")
 def flask_update():
     # get time of day
-    if dt.datetime.now().minute % 2 == 0:
+    if isDayEvent.is_set():
         timeOfDay = 1
     else:
         timeOfDay = 0
 
     # get water level state
-    waterLevelHigh = 0
+    if waterLevelHighEvent.is_set():
+        waterLevelHigh = 1
+    else:
+        waterLevelHigh = 0
 
     # get gate state
-    gateOpen = 0
+    if gateOpenEvent.is_set():
+        gateOpen = 1
+    else:
+        gateOpen = 0
 
     # get pump state
-    pumpOn = 0
+    if pumpOnEvent.is_set():
+        pumpOn = 1
+    else:
+        pumpOn = 0
 
     return {
         "timeOfDay": timeOfDay,
@@ -108,14 +124,34 @@ def run_control_loop(sensor_server, sensor_server_port, gate_server, gate_server
                 exit(1)
 
             water_level_high = sr.bits[0] == 1
+
+            # manipulate thread events (1/2)
+            if water_level_high is True:
+                waterLevelHighEvent.set()
+            else:
+                waterLevelHighEvent.clear()
+            
+            if is_day:
+                isDayEvent.set()
+            else:
+                isDayEvent.clear()
+
+            # perform control logic
             if is_day:
                 # open gate, stop pump
                 if previous_action == 1:
                     logging.debug("(DAY, ___) --> opening gate, stopping pump")
                 else:
                     logging.info("(DAY, ___) --> opening gate, stopping pump")
+
+                # manipulate relays
                 clients[1].write_coil(0x00, 1)
                 clients[2].write_coil(0x00, 0)
+
+                # manipulate thread events (2/2 variant 0)
+                gateOpenEvent.set()
+                pumpOnEvent.clear()
+
                 previous_action = 1
 
             elif not is_day and not water_level_high:
@@ -124,8 +160,15 @@ def run_control_loop(sensor_server, sensor_server_port, gate_server, gate_server
                     logging.debug("(NIGHT, LOW) --> closing gate, starting pump")
                 else:
                     logging.info("(NIGHT, LOW) --> closing gate, starting pump")
+
+                # manipulate relays
                 clients[1].write_coil(0x00, 0)
                 clients[2].write_coil(0x00, 1)
+
+                # manipulate thread events (2/2 variant 1)
+                gateOpenEvent.clear()
+                pumpOnEvent.set()
+
                 previous_action = 2
 
             else: #(not day and water level is high)
@@ -134,8 +177,15 @@ def run_control_loop(sensor_server, sensor_server_port, gate_server, gate_server
                     logging.debug("(NIGHT, HIGH) --> closing gate, stopping pump")
                 else:
                     logging.info("(NIGHT, HIGH) --> closing gate, stopping pump")
+
+                # manipulate relays
                 clients[1].write_coil(0x00, 0)
                 clients[2].write_coil(0x00, 0)
+
+                # manipulate thread events (2/2 variant 2)
+                gateOpenEvent.clear()
+                pumpOnEvent.clear()
+
                 previous_action = 3
 
     finally:
