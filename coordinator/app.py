@@ -1,5 +1,6 @@
 import logging
 import datetime as dt
+import threading
 
 import click
 from pymodbus.client import ModbusTcpClient
@@ -7,7 +8,7 @@ from pymodbus.exceptions import ModbusException
 from pymodbus.pdu import ExceptionResponse
 
 
-def setup(sensor_server, sensor_server_port, gate_server, gate_server_port, pump_server, pump_server_port, **args):
+def setup(sensor_server, sensor_server_port, gate_server, gate_server_port, pump_server, pump_server_port):
     logging.debug("setting up modbus relay server clients")
     sensor_client = ModbusTcpClient(sensor_server, port=sensor_server_port)
     gate_client = ModbusTcpClient(gate_server, port=gate_server_port)
@@ -28,23 +29,8 @@ def teardown(clients):
         c.close()
 
 
-@click.command()
-@click.option("--log", "-l", default="info", help="The log level to use when sending logs to stdout (default: INFO; options: DEBUG, INFO, WARNING, ERROR, CRITICAL)")
-@click.option("--sensor-server", "-ss", default="192.168.0.3", help="The address of the Modbus/TCP server to query for water level sensor state (default: 192.168.0.3)")
-@click.option("--sensor-server-port", "-sp", default=502, help="The port to direct Modbus traffic to for the water level sensor server (default: 502)")
-@click.option("--gate-server", "-gs", default="192.168.0.4", help="The address of the Modbus/TCP server to manipulate the water gate state (default: 192.168.0.4)")
-@click.option("--gate-server-port", "-gp", default=502, help="The port to direct Modbus traffic to for the water level sensor server (default: 502)")
-@click.option("--pump-server", "-ps", default="192.168.0.5", help="The address of the Modbus/TCP server to manipulate the water pump state (default: 192.168.0.5)")
-@click.option("--pump-server-port", "-pp", default=502, help="The port to direct Modbus traffic to for the water level sensor server (default: 502)")
-@click.option("--hmi-host", "-ha", default="0.0.0.0", help="The address to use when creating a socket for the HMI (default: 0.0.0.0)")
-@click.option("--hmi-port", "-hp", default=80, help="The port to use when creating a socket for the HMI (default: 80)")
-def main(**args):
-    # set up logging
-    log_level = getattr(logging, args['log'].upper())
-    logging.basicConfig(level=log_level)
-    logging.info(f"logging level set to {args['log'].upper()}")
-
-    clients = setup(**args)
+def run_control_loop(sensor_server, sensor_server_port, gate_server, gate_server_port, pump_server, pump_server_port):
+    clients = setup(sensor_server, sensor_server_port, gate_server, gate_server_port, pump_server, pump_server_port)
     previous_action = 0
 
     try:
@@ -107,6 +93,30 @@ def main(**args):
 
     finally:
         teardown(clients)
+
+
+
+@click.command()
+@click.option("--log", "-l", default="info", help="The log level to use when sending logs to stdout (default: INFO; options: DEBUG, INFO, WARNING, ERROR, CRITICAL)")
+@click.option("--sensor-server", "-ss", default="192.168.0.3", help="The address of the Modbus/TCP server to query for water level sensor state (default: 192.168.0.3)")
+@click.option("--sensor-server-port", "-sp", default=502, help="The port to direct Modbus traffic to for the water level sensor server (default: 502)")
+@click.option("--gate-server", "-gs", default="192.168.0.4", help="The address of the Modbus/TCP server to manipulate the water gate state (default: 192.168.0.4)")
+@click.option("--gate-server-port", "-gp", default=502, help="The port to direct Modbus traffic to for the water level sensor server (default: 502)")
+@click.option("--pump-server", "-ps", default="192.168.0.5", help="The address of the Modbus/TCP server to manipulate the water pump state (default: 192.168.0.5)")
+@click.option("--pump-server-port", "-pp", default=502, help="The port to direct Modbus traffic to for the water level sensor server (default: 502)")
+@click.option("--hmi-host", "-ha", default="0.0.0.0", help="The address to use when creating a socket for the HMI (default: 0.0.0.0)")
+@click.option("--hmi-port", "-hp", default=80, help="The port to use when creating a socket for the HMI (default: 80)")
+def main(**args):
+    # set up logging
+    log_level = getattr(logging, args['log'].upper())
+    logging.basicConfig(level=log_level)
+    logging.info(f"logging level set to {args['log'].upper()}")
+
+    # start constituent threads
+    control_loop_thread = threading.Thread(target=run_control_loop, args=(args['sensor_server'], args['sensor_server_port'], args['gate_server'], args['gate_server_port'], args['pump_server'], args['pump_server_port']))
+    control_loop_thread.start()
+
+    control_loop_thread.join()
 
 
 if __name__ == "__main__":
