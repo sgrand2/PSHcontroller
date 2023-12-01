@@ -1,15 +1,17 @@
 import logging
-import datetime as dt
 import threading
+import datetime as dt
+from pathlib import Path
 
 import click
-from flask import Flask
+from flask import Flask, send_from_directory
 from pymodbus.client import ModbusTcpClient
 from pymodbus.exceptions import ModbusException
 from pymodbus.pdu import ExceptionResponse
 
 
 app = Flask("coordinator")
+HMI_ROOT = '/opt/csci498/hmi'
 
 
 @app.route("/update")
@@ -35,6 +37,22 @@ def flask_update():
         "gateOpen": gateOpen,
         "pumpOn": pumpOn
     }
+
+
+@app.route("/")
+@app.route("/<path:build_file>")
+def flask_react_root(build_file="index.html"):
+    return send_from_directory(HMI_ROOT, build_file)
+
+
+@app.route("/static/js/<path:build_file>")
+def flask_react_js(build_file="index.html"):
+    return send_from_directory(Path(HMI_ROOT)/"static/js", build_file)
+
+
+@app.route("/static/css/<path:build_file>")
+def flask_react_css(build_file="index.html"):
+    return send_from_directory(Path(HMI_ROOT)/"static/css", build_file)
 
 
 def setup(sensor_server, sensor_server_port, gate_server, gate_server_port, pump_server, pump_server_port):
