@@ -74,7 +74,18 @@ def flask_manual():
     if new_mode == '1':
         logging.warning("changing to manual control mode")
         manualControlEvent.set()
-        # TODO sync current state with target states
+
+        # sync current state w/ target state to avoid leftovers of previous manual control targets
+        if gateOpenEvent.is_set():
+            manualTargetGateOpenEvent.set()
+        else:
+            manualTargetGateOpenEvent.clear()
+        
+        if pumpOnEvent.is_set():
+            manualTargetPumpOnEvent.set()
+        else:
+            manualTargetPumpOnEvent.clear()
+
     elif new_mode == '0':
         logging.info("changing to automatic control mode")
         manualControlEvent.clear()
