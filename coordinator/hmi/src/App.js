@@ -24,22 +24,29 @@ function App() {
 
   useEffect(() => {
     function updateData() {
-      //fetch("/update")
-      //  .then((response) => response.json())
-      //  .then((json) => {
-      //    console.log("update received vvv");
-      //    console.log(json);
-      //  })
-      const updateData = {
-        timeOfDay: 0,
-        waterLevelHigh: 0,
-        gateOpen: 0,
-        pumpOn: 0
-      }
-      setTimeOfDay(updateData.timeOfDay);
-      setWaterLevelHigh(updateData.waterLevelHigh);
-      setGateOpen(updateData.gateOpen);
-      setPumpOn(updateData.pumpOn)
+      // for production:
+      fetch("/update")
+        .then((response) => response.json())
+        .then((json) => {
+          console.log("updating data with vvv");
+          console.log(json);
+          setTimeOfDay(json.timeOfDay);
+          setWaterLevelHigh(json.waterLevelHigh);
+          setGateOpen(json.gateOpen);
+          setPumpOn(json.pumpOn);
+        })
+
+      // for testing:
+      //const updateData = {
+      //  timeOfDay: 0,
+      //  waterLevelHigh: 0,
+      //  gateOpen: 0,
+      //  pumpOn: 0
+      //}
+      //setTimeOfDay(updateData.timeOfDay);
+      //setWaterLevelHigh(updateData.waterLevelHigh);
+      //setGateOpen(updateData.gateOpen);
+      //setPumpOn(updateData.pumpOn);
     }
 
     updateData()
