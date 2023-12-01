@@ -3,9 +3,38 @@ import datetime as dt
 import threading
 
 import click
+from flask import Flask
 from pymodbus.client import ModbusTcpClient
 from pymodbus.exceptions import ModbusException
 from pymodbus.pdu import ExceptionResponse
+
+
+app = Flask("coordinator")
+
+
+@app.route("/update")
+def flask_update():
+    # get time of day
+    if dt.datetime.now().minute % 2 == 0:
+        timeOfDay = 1
+    else:
+        timeOfDay = 0
+
+    # get water level state
+    waterLevelHigh = 0
+
+    # get gate state
+    gateOpen = 0
+
+    # get pump state
+    pumpOn = 0
+
+    return {
+        "timeOfDay": timeOfDay,
+        "waterLevelHigh": waterLevelHigh,
+        "gateOpen": gateOpen,
+        "pumpOn": pumpOn
+    }
 
 
 def setup(sensor_server, sensor_server_port, gate_server, gate_server_port, pump_server, pump_server_port):
@@ -95,7 +124,6 @@ def run_control_loop(sensor_server, sensor_server_port, gate_server, gate_server
         teardown(clients)
 
 
-
 @click.command()
 @click.option("--log", "-l", default="info", help="The log level to use when sending logs to stdout (default: INFO; options: DEBUG, INFO, WARNING, ERROR, CRITICAL)")
 @click.option("--sensor-server", "-ss", default="192.168.0.3", help="The address of the Modbus/TCP server to query for water level sensor state (default: 192.168.0.3)")
@@ -115,8 +143,10 @@ def main(**args):
     # start constituent threads
     control_loop_thread = threading.Thread(target=run_control_loop, args=(args['sensor_server'], args['sensor_server_port'], args['gate_server'], args['gate_server_port'], args['pump_server'], args['pump_server_port']))
     control_loop_thread.start()
-
+    hmi_webserver_thread = threading.Thread(target=app.run, kwargs={"host": args['hmi_host'], "port": args['hmi_port']})
+    hmi_webserver_thread.start()
     control_loop_thread.join()
+    hmi_webserver_thread.join()
 
 
 if __name__ == "__main__":
