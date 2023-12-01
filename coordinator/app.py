@@ -21,6 +21,9 @@ waterLevelHighEvent = threading.Event()
 gateOpenEvent = threading.Event()
 pumpOnEvent = threading.Event()
 
+manualTargetGateOpenEvent = threading.Event()
+manualTargetPumpOnEvent = threading.Event()
+
 
 @app.route("/update")
 def flask_update():
@@ -65,13 +68,36 @@ def flask_update():
 
 @app.route("/manual", methods=['POST'])
 def flask_manual():
-    new_value = request.args.get('s')
-    if new_value == '1':
+
+    # update mode if provided
+    new_mode = request.args.get('m')
+    if new_mode == '1':
         logging.warning("changing to manual control mode")
         manualControlEvent.set()
-    else:
+    elif new_mode == '0':
         logging.info("changing to automatic control mode")
         manualControlEvent.clear()
+
+    if manualControlEvent.is_set():
+
+        # update gate status if provided
+        new_gate_state = request.args.get('g')
+        if new_gate_state == '1':
+            logging.info("received manual mode request to open gate")
+            manualTargetGateOpenEvent.set()
+        elif new_gate_state == '0':
+            logging.info("received manual mode request to close gate")
+            manualTargetGateOpenEvent.clear()
+
+        # update pump status if provided
+        new_pump_state = request.args.get('p')
+        if new_pump_state == '1':
+            logging.info("received manual mode request to start pump")
+            manualTargetPumpOnEvent.set()
+        elif new_pump_state == '0':
+            logging.info("received manual mode request to stop pump")
+            manualTargetPumpOnEvent.clear()
+
     return ('', 204)
 
 
@@ -165,6 +191,22 @@ def automatic_control_logic(is_day, water_level_high, previous_action, clients):
         return 3
 
 
+def manual_control_logic(clients):
+    if manualTargetGateOpenEvent.is_set():
+        clients[1].write_coil(0x00, 1)
+        gateOpenEvent.set()
+    else:
+        clients[1].write_coil(0x00, 0)
+        gateOpenEvent.clear()
+
+    if manualTargetPumpOnEvent.is_set():
+        clients[2].write_coil(0x00, 1)
+        pumpOnEvent.set()
+    else:
+        clients[2].write_coil(0x00, 0)
+        pumpOnEvent.clear()
+
+
 def run_control_loop(sensor_server, sensor_server_port, gate_server, gate_server_port, pump_server, pump_server_port):
     clients = setup(sensor_server, sensor_server_port, gate_server, gate_server_port, pump_server, pump_server_port)
     previous_action = 0
@@ -211,7 +253,7 @@ def run_control_loop(sensor_server, sensor_server_port, gate_server, gate_server
 
             # flip between manual and automatic control
             if manualControlEvent.is_set():
-                previous_action = None
+                previous_action = manual_control_logic(clients)
             else:
                 previous_action = automatic_control_logic(is_day, water_level_high, previous_action, clients)
 

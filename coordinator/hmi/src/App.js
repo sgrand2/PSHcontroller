@@ -8,8 +8,22 @@ function toggleCallback(newValue, setState) {
   setState(newValue ? 1 : 0);
 }
 
+function setManualGateRequest(value) {
+  fetch(`/manual?g=${value ? 1 : 0}`, {
+    method: 'POST'
+  })
+    .then((response) => {})
+}
+
+function setManualPumpRequest(value) {
+  fetch(`/manual?p=${value ? 1 : 0}`, {
+    method: 'POST'
+  })
+    .then((response) => {})
+}
+
 function setManualControlRequest(value) {
-  fetch(`/manual?s=${value ? 1 : 0}`, {
+  fetch(`/manual?m=${value ? 1 : 0}`, {
     method: 'POST'
   })
     .then((response) => {})
@@ -74,8 +88,8 @@ function App() {
       <Readout pos={[100, 50]} name="CONTROL STYLE" value={manualControl} onLabel="MANUAL" offLabel="AUTO" onColor="red" offColor="green" withToggle toggleCallback={(v) => {setManualControlRequest(v); toggleCallback(v, setManualControl)}}/>
       <Readout pos={[100, 400]} name="TIME OF DAY" value={timeOfDay} onLabel="DAY" offLabel="NIGHT" onColor="white" offColor="gray" />
       <Readout pos={[200, 400]} name="WATER LEVEL" value={waterLevelHigh} onLabel="HIGH" offLabel="LOW" onColor="red" offColor="green" />
-      <Readout pos={[300, 400]} name="GATE" value={gateOpen} onLabel="OPEN" offLabel="CLOSED" onColor="green" offColor="red" withToggle={manualControl} toggleCallback={(v) => {toggleCallback(v, setGateOpen)}}/>
-      <Readout pos={[400, 400]} name="PUMP" value={pumpOn} onLabel="ON" offLabel="OFF" onColor="green" offColor="red" withToggle={manualControl} toggleCallback={(v) => {toggleCallback(v, setPumpOn)}}/>
+      <Readout pos={[300, 400]} name="GATE" value={gateOpen} onLabel="OPEN" offLabel="CLOSED" onColor="green" offColor="red" withToggle={manualControl} toggleCallback={(v) => {setManualGateRequest(v); toggleCallback(v, setGateOpen)}}/>
+      <Readout pos={[400, 400]} name="PUMP" value={pumpOn} onLabel="ON" offLabel="OFF" onColor="green" offColor="red" withToggle={manualControl} toggleCallback={(v) => {setManualPumpRequest(v); toggleCallback(v, setPumpOn)}}/>
     </div>
   );
 }
