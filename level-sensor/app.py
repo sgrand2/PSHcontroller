@@ -25,10 +25,10 @@ class CallbackDataBlock(ModbusSequentialDataBlock):
 
     def _read_sensor_gpio(self):
         import RPi.GPIO as gpio
-        if gpio.input(self._sensor_gpio) == gpio.HIGH:
-            logging.info("read level sensor state as HIGH in response to request")
+        if gpio.input(self._sensor_gpio) == gpio.LOW:
+            logging.info("read level sensor state as FULL in response to request")
             return 1
-        logging.info("read level sensor state as LOW in response to request")
+        logging.info("read level sensor state as EMPTY in response to request")
         return 0
 
     def _fake_sensor_gpio(self):
