@@ -31,10 +31,10 @@ class CallbackDataBlock(ModbusSequentialDataBlock):
             target_value = values[idx]
             if target_value is True:
                 logging.info("toggling pump ON in response to request")
-                gpio.output(self._pump_gpio, gpio.HIGH)
+                gpio.output(self._pump_gpio, gpio.LOW)
             else:
                 logging.info("toggling pump OFF in response to request")
-                gpio.output(self._pump_gpio, gpio.LOW)
+                gpio.output(self._pump_gpio, gpio.HIGH)
         super().setValues(address, values)
 
 
@@ -46,7 +46,7 @@ def setup_gpio(pump_gpio, **args):
     gpio.setmode(gpio.BCM)
 
     # set up pump GPIO pin as output signal
-    gpio.setup(pump_gpio, gpio.OUT, initial=gpio.LOW)
+    gpio.setup(pump_gpio, gpio.OUT, initial=gpio.HIGH)
 
 
 def run_server(pump_gpio, host, port, **args):
@@ -74,7 +74,7 @@ def run_server(pump_gpio, host, port, **args):
 def cleanup(pump_gpio, **args):
     logging.debug("cleaning up GPIO")
     import RPi.GPIO as gpio
-    gpio.output(pump_gpio, gpio.LOW)
+    gpio.output(pump_gpio, gpio.HIGH)
     gpio.cleanup()
 
 

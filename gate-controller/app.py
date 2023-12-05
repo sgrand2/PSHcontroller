@@ -31,10 +31,10 @@ class CallbackDataBlock(ModbusSequentialDataBlock):
             target_value = values[idx]
             if target_value is True:
                 logging.info("toggling gate OPEN in response to request")
-                gpio.output(self._gate_gpio, gpio.HIGH)
+                gpio.output(self._gate_gpio, gpio.LOW)
             else:
                 logging.info("toggling gate CLOSED in response to request")
-                gpio.output(self._gate_gpio, gpio.LOW)
+                gpio.output(self._gate_gpio, gpio.HIGH)
         super().setValues(address, values)
 
 
@@ -46,7 +46,7 @@ def setup_gpio(gate_gpio, **args):
     gpio.setmode(gpio.BCM)
 
     # set up gate GPIO pin as output signal
-    gpio.setup(gate_gpio, gpio.OUT, initial=gpio.LOW)
+    gpio.setup(gate_gpio, gpio.OUT, initial=gpio.HIGH)
 
 
 def run_server(gate_gpio, host, port, **args):
@@ -74,7 +74,7 @@ def run_server(gate_gpio, host, port, **args):
 def cleanup(gate_gpio, **args):
     logging.debug("cleaning up GPIO")
     import RPi.GPIO as gpio
-    gpio.output(gate_gpio, gpio.LOW)
+    gpio.output(gate_gpio, gpio.HIGH)
     gpio.cleanup()
 
 
