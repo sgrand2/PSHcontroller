@@ -5,7 +5,9 @@ services:
     build: ./coordinator
     networks:
       modbus:
-        ipv4_address: 192.168.0.2
+        ipv4_address: 192.168.1.2
+    ports:
+      - 80:80
     depends_on:
       gate-controller:
         condition: service_healthy
@@ -22,7 +24,7 @@ services:
       test: ["CMD-SHELL", " netstat -an | grep -q 502"]
     networks:
       modbus:
-        ipv4_address: 192.168.0.4
+        ipv4_address: 192.168.1.4
 
   pump-controller:
     image: sgranda/pshcontroller:pump-controller-latest
@@ -32,22 +34,23 @@ services:
       test: ["CMD-SHELL", " netstat -an | grep -q 502"]
     networks:
       modbus:
-        ipv4_address: 192.168.0.5
+        ipv4_address: 192.168.1.5
 
   level-sensor:
     image: sgranda/pshcontroller:level-sensor-latest
+    command: python /opt/csci498/app.py run -sg 17
     build: ./level-sensor
     privileged: true
     healthcheck:
       test: ["CMD-SHELL", " netstat -an | grep -q 502"]
     networks:
       modbus:
-        ipv4_address: 192.168.0.3
+        ipv4_address: 192.168.1.3
 
 networks:
   modbus:
     driver: bridge
     ipam:
       config:
-        - subnet: 192.168.0.0/24
-          gateway: 192.168.0.1
+        - subnet: 192.168.1.0/24
+          gateway: 192.168.1.1
